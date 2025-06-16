@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 56, 43, 39;
+  --background-start-rgb: 255, 248, 245;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 242, 240, 235;
+    --background-start-rgb: 20, 20, 25;
+    --background-end-rgb: 15, 15, 20;
+  }
+}
+
+@layer base {
+  :root {
+    /* Base colors - clean white background with professional contrast */
+    --background: 0 0% 100%;
+    --foreground: 220 15% 25%;
+    
+    /* Card and popup styling - subtle off-white with professional borders */
+    --card: 0 0% 99%;
+    --card-foreground: 220 15% 25%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 25%;
+    
+    /* Primary - dark orange theme color */
+    --primary: 25 85% 35%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary - warm neutral grays */
+    --secondary: 20 15% 95%;
+    --secondary-foreground: 220 15% 35%;
+    
+    /* Muted colors - professional grays with warm undertones */
+    --muted: 25 10% 96%;
+    --muted-foreground: 220 10% 50%;
+    
+    /* Accent - lighter orange for highlights */
+    --accent: 30 70% 90%;
+    --accent-foreground: 25 85% 25%;
+    
+    /* Status colors */
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 98%;
+    
+    /* UI elements */
+    --border: 25 15% 88%;
+    --input: 25 10% 95%;
+    --ring: 25 85% 35%;
+    
+    /* Chart colors - professional palette */
+    --chart-1: 25 85% 35%;
+    --chart-2: 220 40% 45%;
+    --chart-3: 200 30% 40%;
+    --chart-4: 0 0% 35%;
+    --chart-5: 35 60% 50%;
+    
+    --radius: 0.5rem;
+  }
+  .dark {
+    /* Dark theme - professional dark backgrounds with warm orange accents */
+    --background: 220 20% 8%;
+    --foreground: 0 0% 95%;
+    
+    /* Card and popup styling in dark mode */
+    --card: 220 15% 10%;
+    --card-foreground: 0 0% 95%;
+    --popover: 220 15% 10%;
+    --popover-foreground: 0 0% 95%;
+    
+    /* Primary - brighter orange for dark backgrounds */
+    --primary: 25 85% 55%;
+    --primary-foreground: 220 20% 8%;
+    
+    /* Secondary - darker warm grays */
+    --secondary: 220 15% 15%;
+    --secondary-foreground: 0 0% 85%;
+    
+    /* Muted colors for dark theme */
+    --muted: 220 15% 12%;
+    --muted-foreground: 0 0% 65%;
+    
+    /* Accent - warm orange accent for dark mode */
+    --accent: 25 75% 25%;
+    --accent-foreground: 0 0% 95%;
+    
+    /* Status colors for dark mode */
+    --destructive: 0 65% 60%;
+    --destructive-foreground: 0 0% 95%;
+    
+    /* UI elements for dark mode */
+    --border: 220 15% 20%;
+    --input: 220 15% 15%;
+    --ring: 25 85% 55%;
+    
+    /* Chart colors for dark theme */
+    --chart-1: 25 85% 55%;
+    --chart-2: 220 50% 60%;
+    --chart-3: 200 40% 55%;
+    --chart-4: 0 0% 65%;
+    --chart-5: 35 70% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
