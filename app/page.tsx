@@ -159,13 +159,13 @@ export default function HomePage() {
                 icon: Zap,
                 title: "AI-Powered Interviews",
                 description: "Automated video interviews with intelligent scoring. Our AI evaluates responses, communication skills, and cultural fit for comprehensive assessment.",
-                color: "from-accent to-accent/80"
+                color: "from-primary to-primary/80"
               },
               {
                 icon: Users,
                 title: "Precision Job Matching",
                 description: "Machine learning algorithms match candidates to opportunities based on skills, experience, salary expectations, and cultural alignment.",
-                color: "from-secondary to-muted"
+                color: "from-primary to-primary/80"
               }
             ].map((feature, index) => (
               <Card 
