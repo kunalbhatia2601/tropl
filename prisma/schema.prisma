@@ -1,0 +1,384 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  email       String      @unique
+  phone       String?     @unique
+  name        String?
+  role        UserRole    @default(CANDIDATE)
+  status      UserStatus  @default(ACTIVE)
+  avatar      String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  lastLogin   DateTime?
+  
+  // Authentication
+  password    String?     // For recruiter/admin login
+  otpCode     String?
+  otpExpiry   DateTime?
+  verified    Boolean     @default(false)
+  
+  // Relationships
+  recruiter   Recruiter?
+  candidate   Candidate?
+  
+  @@map("users")
+}
+
+model Recruiter {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String    @unique @db.ObjectId
+  companyName     String?
+  department      String?
+  designation     String?
+  experience      Int?      // years of experience
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relationships
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs            Job[]
+  interviews      Interview[]
+  candidateShares CandidateShare[]
+  
+  @@map("recruiters")
+}
+
+model Candidate {
+  id                String              @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String              @unique @db.ObjectId
+  firstName         String?
+  lastName          String?
+  jobTitle          String?
+  experience        Int?                // years of experience
+  expectedSalary    Float?
+  currentSalary     Float?
+  location          String?
+  skills            String[]            // Array of skills
+  availability      CandidateAvailability @default(AVAILABLE)
+  resumeUrl         String?
+  profileSummary    String?
+  education         Json?               // Education details as JSON
+  workExperience    Json?               // Work experience as JSON
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Relationships
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications      JobApplication[]
+  interviews        Interview[]
+  candidateShares   CandidateShare[]
+  
+  @@map("candidates")
+}
+
+model Client {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  contactPerson   String
+  email           String        @unique
+  phone           String?
+  address         String?
+  website         String?
+  industry        String?
+  companySize     String?
+  status          ClientStatus  @default(ACTIVE)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relationships
+  jobs            Job[]
+  
+  @@map("clients")
+}
+
+model Vendor {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  contactPerson   String
+  email           String        @unique
+  phone           String?
+  address         String?
+  specialization  String[]      // Areas of expertise
+  status          VendorStatus  @default(ACTIVE)
+  rating          Float?        @default(0)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relationships
+  jobs            Job[]
+  
+  @@map("vendors")
+}
+
+model Job {
+  id                    String              @id @default(auto()) @map("_id") @db.ObjectId
+  jobCode               String              @unique
+  clientJobId           String?
+  title                 String
+  description           String?
+  requirements          String[]            // Required skills/qualifications
+  location              String?
+  jobType               JobType             @default(FULL_TIME)
+  experienceLevel       ExperienceLevel     @default(MID_LEVEL)
+  minSalary             Float?
+  maxSalary             Float?
+  currency              String              @default("USD")
+  status                JobStatus           @default(OPEN)
+  priority              JobPriority         @default(MEDIUM)
+  openings              Int                 @default(1)
+  filledPositions       Int                 @default(0)
+  
+  // Relationships
+  clientId              String              @db.ObjectId
+  client                Client              @relation(fields: [clientId], references: [id])
+  vendorId              String?             @db.ObjectId
+  vendor                Vendor?             @relation(fields: [vendorId], references: [id])
+  recruiterId           String              @db.ObjectId
+  recruiter             Recruiter           @relation(fields: [recruiterId], references: [id])
+  
+  applications          JobApplication[]
+  interviews            Interview[]
+  
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  closedAt              DateTime?
+  
+  @@map("jobs")
+}
+
+model JobApplication {
+  id              String                    @id @default(auto()) @map("_id") @db.ObjectId
+  candidateId     String                    @db.ObjectId
+  jobId           String                    @db.ObjectId
+  status          JobApplicationStatus      @default(APPLIED)
+  appliedAt       DateTime                  @default(now())
+  notes           String?
+  resumeUrl       String?
+  coverLetter     String?
+  
+  // Pipeline tracking
+  currentStage    ApplicationStage          @default(APPLIED)
+  stageHistory    Json?                     // History of stage changes
+  
+  // Relationships
+  candidate       Candidate                 @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  job             Job                       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  interviews      Interview[]
+  
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  
+  @@unique([candidateId, jobId])
+  @@map("job_applications")
+}
+
+model Interview {
+  id                String            @id @default(auto()) @map("_id") @db.ObjectId
+  jobId             String            @db.ObjectId
+  candidateId       String            @db.ObjectId
+  recruiterId       String            @db.ObjectId
+  applicationId     String?           @db.ObjectId
+  
+  title             String
+  description       String?
+  type              InterviewType     @default(PHONE)
+  status            InterviewStatus   @default(SCHEDULED)
+  
+  scheduledAt       DateTime
+  duration          Int               @default(60)  // Duration in minutes
+  location          String?           // Physical location or meeting link
+  meetingLink       String?
+  
+  // Results
+  feedback          String?
+  rating            Int?              @default(0)   // 1-5 rating
+  outcome           InterviewOutcome?
+  
+  // Relationships
+  job               Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate         Candidate         @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  recruiter         Recruiter         @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
+  application       JobApplication?   @relation(fields: [applicationId], references: [id])
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@map("interviews")
+}
+
+model CandidateShare {
+  id                String              @id @default(auto()) @map("_id") @db.ObjectId
+  candidateId       String              @db.ObjectId
+  recruiterId       String              @db.ObjectId
+  shareType         CandidateShareType[]
+  shareEmail        String
+  expiryDate        DateTime?
+  maxVisits         Int?                @default(5)
+  currentVisits     Int                 @default(0)
+  status            ShareStatus         @default(ACTIVE)
+  
+  // Relationships
+  candidate         Candidate           @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  recruiter         Recruiter           @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@map("candidate_shares")
+}
+
+model ResumeFile {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  originalName    String
+  fileName        String
+  filePath        String
+  fileSize        Int
+  mimeType        String
+  uploadedBy      String        @db.ObjectId // User ID
+  extractedText   String?       // OCR extracted text
+  status          FileStatus    @default(PROCESSING)
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@map("resume_files")
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  RECRUITER
+  CANDIDATE
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum CandidateAvailability {
+  AVAILABLE
+  NOTICE_PERIOD
+  NOT_AVAILABLE
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+  PROSPECT
+}
+
+enum VendorStatus {
+  ACTIVE
+  INACTIVE
+  BLACKLISTED
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  FREELANCE
+  INTERNSHIP
+}
+
+enum ExperienceLevel {
+  ENTRY_LEVEL
+  MID_LEVEL
+  SENIOR_LEVEL
+  EXECUTIVE
+}
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  ON_HOLD
+  FILLED
+}
+
+enum JobPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum JobApplicationStatus {
+  APPLIED
+  UNDER_REVIEW
+  SHORTLISTED
+  INTERVIEWED
+  SELECTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum ApplicationStage {
+  APPLIED
+  SCREENING
+  PHONE_INTERVIEW
+  TECHNICAL_INTERVIEW
+  FINAL_INTERVIEW
+  OFFER_EXTENDED
+  OFFER_ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum InterviewType {
+  PHONE
+  VIDEO
+  IN_PERSON
+  TECHNICAL
+  HR_ROUND
+  FINAL_ROUND
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum InterviewOutcome {
+  SELECTED
+  REJECTED
+  ON_HOLD
+  PROCEED_TO_NEXT_ROUND
+}
+
+enum CandidateShareType {
+  PROFILE
+  RESUME
+  CONTACT_INFO
+  INTERVIEW_FEEDBACK
+}
+
+enum ShareStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum FileStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}

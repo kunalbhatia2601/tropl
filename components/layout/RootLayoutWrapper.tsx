@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { AuthProvider } from '@/context/AuthContext';
 
 export function RootLayoutWrapper({
   children,
@@ -14,12 +15,14 @@ export function RootLayoutWrapper({
   const isRecruiterLogin = pathname === '/recruiter/login';
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {(!isRecruiterRoute || isRecruiterLogin) && <Navbar />}
-      <main className="flex-1">
-        {children}
-      </main>
-      {!isRecruiterRoute && <Footer />}
-    </div>
+    <AuthProvider>
+      <div className="min-h-screen flex flex-col">
+        {(!isRecruiterRoute || isRecruiterLogin) && <Navbar />}
+        <main className="flex-1">
+          {children}
+        </main>
+        {!isRecruiterRoute && <Footer />}
+      </div>
+    </AuthProvider>
   );
-} 
+}

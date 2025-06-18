@@ -4,7 +4,11 @@ import { useState } from "react";
 import { AddVendorModal } from "@/components/vendors/AddVendorModal";
 import { ImportVendorModal } from "@/components/vendors/ImportVendorModal";
 
-export function VendorsActions() {
+interface VendorsActionsProps {
+  onVendorAdded?: () => void;
+}
+
+export function VendorsActions({ onVendorAdded }: VendorsActionsProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
 
@@ -30,6 +34,7 @@ export function VendorsActions() {
       <AddVendorModal 
         open={showAddModal} 
         onOpenChange={setShowAddModal} 
+        onVendorAdded={onVendorAdded}
       />
       <ImportVendorModal 
         open={showImportModal} 
@@ -37,4 +42,4 @@ export function VendorsActions() {
       />
     </div>
   );
-} 
+}

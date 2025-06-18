@@ -1,7 +1,7 @@
 'use client'
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -20,6 +20,18 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useAuth } from "@/context/AuthContext";
 
 const menuItems = [
   {
@@ -92,7 +104,17 @@ const menuItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    // Use auth context logout
+    logout();
+    
+    // Redirect to home page
+    router.push('/');
+  };
 
   return (
     <div className={cn(
@@ -135,19 +157,37 @@ export function Sidebar() {
             </Link>
           );
         })}
-      </nav>
-
-      <div className="p-2 border-t border-gray-700">
-        <button 
-          className={cn(
-            "flex items-center w-full px-3 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 hover:text-white transition-colors",
-            isCollapsed && "justify-center"
-          )}
-          title={isCollapsed ? "Logout" : undefined}
-        >
-          <LogOut className={cn("w-5 h-5", !isCollapsed && "mr-3")} />
-          {!isCollapsed && "Logout"}
-        </button>
+      </nav>      <div className="p-2 border-t border-gray-700">
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button 
+              className={cn(
+                "flex items-center w-full px-3 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 hover:text-white transition-colors",
+                isCollapsed && "justify-center"
+              )}
+              title={isCollapsed ? "Logout" : undefined}
+            >
+              <LogOut className={cn("w-5 h-5", !isCollapsed && "mr-3")} />
+              {!isCollapsed && "Logout"}
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure you want to logout?</AlertDialogTitle>
+              <AlertDialogDescription>
+                You will be signed out of your account and redirected to the home page.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleLogout}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Yes, Logout
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

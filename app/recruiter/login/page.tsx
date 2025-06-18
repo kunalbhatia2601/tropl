@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff, ShieldCheck, AlertCircle } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
+import { useAuth } from '@/context/AuthContext';
 
 export default function RecruiterLoginPage() {
   const [email, setEmail] = useState('');
@@ -17,28 +18,32 @@ export default function RecruiterLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
-
+  const { login } = useAuth();
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
     try {
-      // Mock authentication
-      // TODO: connect to API
-      console.log('Recruiter login:', { email, password });
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock validation
-      if (email === 'admin@tropl.ai' && password === 'admin123') {
+      const response = await fetch('/api/auth/recruiter-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();      if (data.success) {
+        // Use auth context to login
+        login(data.data.user, data.data.token);
+        
+        // Redirect to recruiter dashboard
         router.push('/recruiter/dashboard');
       } else {
-        setError('Invalid credentials. Please check your email and password.');
+        setError(data.error || 'Login failed');
       }
     } catch (error) {
-      setError('Login failed. Please try again.');
+      setError('Network error. Please try again.');
       console.error('Login error:', error);
     } finally {
       setIsLoading(false);
