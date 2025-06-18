@@ -4,6 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/context/AuthContext";
 import {
   Select,
   SelectContent,
@@ -11,26 +13,148 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface AddVendorModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onVendorAdded?: () => void;
 }
 
-export function AddVendorModal({ open, onOpenChange }: AddVendorModalProps) {
+interface VendorFormData {
+  name: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  address: string;
+  specialization: string[];
+  rating: number;
+  notes: string;
+}
+
+export function AddVendorModal({ open, onOpenChange, onVendorAdded }: AddVendorModalProps) {
   const [step, setStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [formData, setFormData] = useState<VendorFormData>({
+    name: '',
+    contactPerson: '',
+    email: '',
+    phone: '',
+    address: '',
+    specialization: [],
+    rating: 0,
+    notes: '',
+  });
+  const { token } = useAuth();
+
+  const handleInputChange = (field: keyof VendorFormData, value: string | number | string[]) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSpecializationChange = (specialization: string, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      specialization: checked 
+        ? [...prev.specialization, specialization]
+        : prev.specialization.filter(s => s !== specialization)
+    }));
+  };
+
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      setError('Vendor name is required');
+      return false;
+    }
+    if (!formData.contactPerson.trim()) {
+      setError('Contact person is required');
+      return false;
+    }
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/vendors', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Reset form
+        setFormData({
+          name: '',
+          contactPerson: '',
+          email: '',
+          phone: '',
+          address: '',
+          specialization: [],
+          rating: 0,
+          notes: '',
+        });
+        setStep(1);
+        onOpenChange(false);
+        onVendorAdded?.();
+      } else {
+        setError(data.error || 'Failed to create vendor');
+      }
+    } catch (error) {
+      setError('Network error. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const steps = [
     { number: 1, title: "Vendor Information" },
     { number: 2, title: "Contact Details" },
-    { number: 3, title: "Document Upload" },
+    { number: 3, title: "Specialization & Notes" },
+  ];
+
+  const specializationOptions = [
+    'IT Recruitment',
+    'Executive Search',
+    'Healthcare Staffing',
+    'Finance & Accounting',
+    'Engineering',
+    'Sales & Marketing',
+    'Manufacturing',
+    'Construction',
+    'Legal',
+    'Education',
+    'Other'
   ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-        <DialogTitle>Add New Vendor</DialogTitle>
+          <DialogTitle>Add New Vendor</DialogTitle>
+
           <div className="flex justify-between mt-4">
             {steps.map((s) => (
               <div
@@ -64,117 +188,136 @@ export function AddVendorModal({ open, onOpenChange }: AddVendorModalProps) {
         </DialogHeader>
 
         <div className="mt-6">
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           {step === 1 && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="vendorName">Vendor Name*</Label>
-                  <Input id="vendorName" placeholder="Enter vendor name" />
+                  <Input 
+                    id="vendorName" 
+                    placeholder="Enter vendor name"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="gstin">GSTIN</Label>
-                  <Input id="gstin" placeholder="Enter GSTIN" />
+                  <Label htmlFor="contactPerson">Contact Person*</Label>
+                  <Input 
+                    id="contactPerson" 
+                    placeholder="Enter contact person name"
+                    value={formData.contactPerson}
+                    onChange={(e) => handleInputChange('contactPerson', e.target.value)}
+                    required
+                  />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="address1">Address 1</Label>
-                <Input id="address1" placeholder="Enter address line 1" />
+                <Label htmlFor="address">Address</Label>
+                <Input 
+                  id="address" 
+                  placeholder="Enter vendor address"
+                  value={formData.address}
+                  onChange={(e) => handleInputChange('address', e.target.value)}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="address2">Address 2</Label>
-                <Input id="address2" placeholder="Enter address line 2" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="country">Country</Label>
-                  <Select defaultValue="india">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="india">India</SelectItem>
-                      <SelectItem value="usa">United States</SelectItem>
-                      <SelectItem value="uk">United Kingdom</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">State</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select state" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="maharashtra">Maharashtra</SelectItem>
-                      <SelectItem value="karnataka">Karnataka</SelectItem>
-                      <SelectItem value="tamilnadu">Tamil Nadu</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="city">City</Label>
-                  <Input id="city" placeholder="Enter city" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="pincode">Pincode</Label>
-                  <Input id="pincode" placeholder="Enter pincode" />
-                </div>
+                <Label htmlFor="rating">Rating (0-5)</Label>
+                <Select 
+                  value={formData.rating.toString()} 
+                  onValueChange={(value) => handleInputChange('rating', parseFloat(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select rating" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">0 - No rating</SelectItem>
+                    <SelectItem value="1">1 - Poor</SelectItem>
+                    <SelectItem value="2">2 - Fair</SelectItem>
+                    <SelectItem value="3">3 - Good</SelectItem>
+                    <SelectItem value="4">4 - Very Good</SelectItem>
+                    <SelectItem value="5">5 - Excellent</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
 
           {step === 2 && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="contactPerson">Contact Person</Label>
-                  <Input id="contactPerson" placeholder="Enter contact person name" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="Enter email" />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email*</Label>
+                <Input 
+                  id="email" 
+                  type="email"
+                  placeholder="Enter email address"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  required
+                />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" placeholder="Enter phone number" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="alternatePhone">Alternate Phone</Label>
-                  <Input id="alternatePhone" placeholder="Enter alternate phone" />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input 
+                  id="phone" 
+                  placeholder="Enter phone number"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                />
               </div>
             </div>
           )}
 
-{step === 3 && (
-  <div className="space-y-4">
-    <div className="space-y-2">
-      <Label htmlFor="documents">Upload Documents</Label>
-
-      <div className="relative">
-        <Input
-          id="documents"
-          type="file"
-          multiple
-          className="hidden"
-        />
-        <label
-          htmlFor="documents"
-          className="block w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-100 transition"
-        >
-          <div className="text-gray-500">
-            Drag and drop files here or <span className="text-blue-600 underline">click to upload</span>
-          </div>
-        </label>
-      </div>
-    </div>
-  </div>
-)}
-
+          {step === 3 && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Specialization Areas</Label>
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                  {specializationOptions.map((spec) => (
+                    <div key={spec} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={spec}
+                        checked={formData.specialization.includes(spec)}
+                        onCheckedChange={(checked) => 
+                          handleSpecializationChange(spec, checked as boolean)
+                        }
+                      />
+                      <Label htmlFor={spec} className="text-sm">{spec}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes</Label>
+                <textarea
+                  id="notes"
+                  className="w-full p-3 border border-gray-300 rounded-md resize-none h-32"
+                  placeholder="Add any additional notes about the vendor..."
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange('notes', e.target.value)}
+                />
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-medium mb-2">Review Vendor Information:</h4>
+                <div className="space-y-1 text-sm text-gray-600">
+                  <p><strong>Name:</strong> {formData.name}</p>
+                  <p><strong>Contact Person:</strong> {formData.contactPerson}</p>
+                  <p><strong>Email:</strong> {formData.email}</p>
+                  <p><strong>Phone:</strong> {formData.phone}</p>
+                  {formData.specialization.length > 0 && (
+                    <p><strong>Specialization:</strong> {formData.specialization.join(', ')}</p>
+                  )}
+                  <p><strong>Rating:</strong> {formData.rating}/5</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end space-x-2 mt-6">
@@ -187,6 +330,7 @@ export function AddVendorModal({ open, onOpenChange }: AddVendorModalProps) {
                 onOpenChange(false);
               }
             }}
+            disabled={isLoading}
           >
             {step === 1 ? "Cancel" : "Previous"}
           </Button>
@@ -195,15 +339,15 @@ export function AddVendorModal({ open, onOpenChange }: AddVendorModalProps) {
               if (step < steps.length) {
                 setStep(step + 1);
               } else {
-                // Handle form submission
-                onOpenChange(false);
+                handleSubmit();
               }
             }}
+            disabled={isLoading}
           >
-            {step === steps.length ? "Save" : "Next"}
+            {isLoading ? "Saving..." : (step === steps.length ? "Save Vendor" : "Next")}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
   );
-} 
+}

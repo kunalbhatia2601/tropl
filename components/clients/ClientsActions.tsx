@@ -4,7 +4,11 @@ import { useState } from "react";
 import { AddClientModal } from "./AddClientModal";
 import { ImportClientModal } from "./ImportClientModal";
 
-export function ClientsActions() {
+interface ClientsActionsProps {
+  onClientAdded?: () => void;
+}
+
+export function ClientsActions({ onClientAdded }: ClientsActionsProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
 
@@ -29,7 +33,8 @@ export function ClientsActions() {
 
       <AddClientModal 
         open={showAddModal} 
-        onOpenChange={setShowAddModal} 
+        onOpenChange={setShowAddModal}
+        onClientAdded={onClientAdded}
       />
       <ImportClientModal 
         open={showImportModal} 
@@ -37,4 +42,4 @@ export function ClientsActions() {
       />
     </div>
   );
-} 
+}
