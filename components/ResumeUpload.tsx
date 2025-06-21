@@ -45,32 +45,46 @@ export function ResumeUpload({
     if (type.includes('image')) return 'IMG';
     return 'FILE';
   };
+  const uploadToAPI = async (file: File, uploadedFile: UploadedFile) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
 
-  const simulateUpload = (file: UploadedFile) => {
-    const interval = setInterval(() => {
-      setFiles(prev => prev.map(f => {
-        if (f.id === file.id && f.uploadProgress < 100) {
-          const newProgress = Math.min(f.uploadProgress + Math.random() * 30, 100);
-          return {
-            ...f,
-            uploadProgress: newProgress,
-            status: newProgress === 100 ? 'completed' : 'uploading'
-          };
-        }
-        return f;
-      }));
-    }, 500);
+      const response = await fetch('/api/upload-resume', {
+        method: 'POST',
+        body: formData,
+      });
 
-    setTimeout(() => {
-      clearInterval(interval);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      const result = await response.json();
+      
       setFiles(prev => prev.map(f => 
-        f.id === file.id 
-          ? { ...f, uploadProgress: 100, status: 'completed' }
+        f.id === uploadedFile.id 
+          ? { 
+              ...f, 
+              uploadProgress: 100, 
+              status: 'completed',
+              extractedData: result.extractedData,
+              fileName: result.fileName
+            }
           : f
       ));
-    }, 3000);
-  };
 
+      return result;
+    } catch (error) {
+      console.error('Upload error:', error);
+      setFiles(prev => prev.map(f => 
+        f.id === uploadedFile.id 
+          ? { ...f, status: 'error' }
+          : f
+      ));
+      throw error;
+    }
+  };
   const handleFiles = useCallback((newFiles: FileList | File[]) => {
     const fileArray = Array.from(newFiles);
     
@@ -90,11 +104,17 @@ export function ResumeUpload({
 
     setFiles(prev => [...prev, ...uploadFiles]);
 
-    // Simulate upload for each file
-    uploadFiles.forEach(simulateUpload);
-
-    // TODO: connect to API
-    console.log('Uploading files:', uploadFiles);
+    // Upload each file to the API
+    uploadFiles.forEach(async (uploadedFile) => {
+      const actualFile = fileArray.find(f => f.name === uploadedFile.name);
+      if (actualFile) {
+        try {
+          await uploadToAPI(actualFile, uploadedFile);
+        } catch (error) {
+          console.error('Upload failed for file:', uploadedFile.name, error);
+        }
+      }
+    });
   }, [files.length, maxFiles]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {

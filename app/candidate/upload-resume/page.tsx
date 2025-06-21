@@ -35,9 +35,22 @@ export default function UploadResumePage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
-
   const handleUploadComplete = (files: any[]) => {
     setUploadedFiles(files);
+    
+    // Pre-populate profile data with extracted information
+    if (files.length > 0 && files[0].extractedData) {
+      const extracted = files[0].extractedData;
+      setProfileData(prev => ({
+        ...prev,
+        fullName: extracted.name || prev.fullName,
+        phone: extracted.phone || prev.phone,
+        location: extracted.contactDetails?.address || prev.location,
+        skills: extracted.skills?.join(', ') || prev.skills,
+        summary: extracted.summary || prev.summary
+      }));
+    }
+    
     setStep('profile');
   };
 
@@ -80,7 +93,7 @@ export default function UploadResumePage() {
         {step === 'upload' && (
           <ResumeUpload 
             onUploadComplete={handleUploadComplete}
-            maxFiles={3}
+            maxFiles={1}
           />
         )}
 
