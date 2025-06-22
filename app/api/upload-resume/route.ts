@@ -5,7 +5,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import mammoth from 'mammoth';
 
 // Initialize Gemini AI
-const genAI = new GoogleGenerativeAI("");
+const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI || "");
 
 export async function POST(request: NextRequest) {
   try {
