@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import mammoth from 'mammoth';
 
@@ -31,21 +29,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid file type' }, { status: 400 });
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), 'uploads');
-    try {
-      await mkdir(uploadsDir, { recursive: true });
-    } catch (error) {
-      // Directory might already exist
-    }
-
-    // Save file
+    // Get file buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const fileName = `${Date.now()}-${file.name}`;
-    const filePath = join(uploadsDir, fileName);
-    
-    await writeFile(filePath, buffer);
 
     // Process with Gemini AI
     let extractedData;
@@ -53,8 +39,8 @@ export async function POST(request: NextRequest) {
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
       let prompt = '';
-      let fileData = null;      
-      
+      let fileData = null;
+
       if (file.type.startsWith('image/') || file.type === 'application/pdf') {
         // For images and PDFs, send directly to Gemini AI
         const base64Data = buffer.toString('base64');
@@ -77,13 +63,13 @@ export async function POST(request: NextRequest) {
           prompt = `Extract all information from this resume text and format it as JSON with the following structure:\n\nResume content:\n${textContent}\n\n`;
         } catch (docError) {
           console.error('Document parsing error:', docError);
-          return NextResponse.json({ 
-            error: 'Failed to parse Word document. Please try converting to text or image format.' 
+          return NextResponse.json({
+            error: 'Failed to parse Word document. Please try converting to text or image format.'
           }, { status: 400 });
         }
       } else {
-        return NextResponse.json({ 
-          error: 'Unsupported file type' 
+        return NextResponse.json({
+          error: 'Unsupported file type'
         }, { status: 400 });
       }
 
@@ -139,13 +125,13 @@ export async function POST(request: NextRequest) {
 
 Return only the JSON object, no additional text or formatting.`;
 
-      const result = fileData 
+      const result = fileData
         ? await model.generateContent([prompt, fileData])
         : await model.generateContent(prompt);
 
       const response = await result.response;
       let text = response.text();
-      
+
       try {
 
         text = text.replace(/```json\n?|\n?```/g, '').trim();
@@ -153,15 +139,15 @@ Return only the JSON object, no additional text or formatting.`;
         extractedData = JSON.parse(text);
       } catch (parseError) {
         console.error('JSON parsing error:', parseError);
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: 'Failed to parse AI response',
-          rawResponse: text 
+          rawResponse: text
         }, { status: 500 });
       }
 
     } catch (aiError) {
       console.error('Gemini AI error:', aiError);
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Failed to process resume with AI',
         details: aiError instanceof Error ? aiError.message : 'Unknown error'
       }, { status: 500 });
@@ -169,14 +155,13 @@ Return only the JSON object, no additional text or formatting.`;
 
     return NextResponse.json({
       success: true,
-      fileName: fileName,
-      filePath: filePath,
+      fileName: file.name,
       extractedData: extractedData
     });
 
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Upload failed',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
