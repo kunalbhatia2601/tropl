@@ -18,6 +18,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { X, Plus } from "lucide-react";
 import { useState } from "react";
+import { useFileUpload } from "@/hooks/useFileUpload";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CheckCircle, AlertCircle, Upload as UploadIcon } from "lucide-react";
 
 interface AddResumeModalProps {
   open: boolean;
@@ -44,6 +48,40 @@ export function AddResumeModal({ open, onOpenChange }: AddResumeModalProps) {
   const [otherDocs, setOtherDocs] = useState([
     { type: "", name: "", file: null as File | null }
   ]);
+  const [formData, setFormData] = useState({
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    linkedin: "",
+    github: "",
+    jobTitle: "",
+    salary: "",
+    noticePeriod: "",
+    experience: "",
+    relocate: "",
+    summary: "",
+    dob: "",
+    gender: "",
+    country: "India",
+    state: "",
+    city: "",
+    aadhaar: "",
+    pan: "",
+    uan: "",
+    employerName: "",
+    recruiterName: "",
+    recruiterEmail: "",
+    recruiterContact: ""
+  });
+
+  const [uploadStatus, setUploadStatus] = useState<{
+    status: 'idle' | 'uploading' | 'success' | 'error';
+    message?: string;
+  }>({ status: 'idle' });
+
+  const { uploadSingleFile, isUploading, uploadProgress } = useFileUpload();
 
   const addSkill = () => {
     if (newSkill && !skills.includes(newSkill)) {
@@ -84,6 +122,76 @@ export function AddResumeModal({ open, onOpenChange }: AddResumeModalProps) {
     setOtherDocs(otherDocs.map((doc, i) => i === idx ? { ...doc, [field]: value } : doc));
   };
 
+  const handleResumeUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadStatus({ status: 'uploading', message: 'Processing resume with AI...' });
+
+    try {
+      const result = await uploadSingleFile(file);
+      
+      if (result.success && result.extractedData) {
+        const data = result.extractedData;
+        
+        // Auto-fill form fields
+        setFormData(prev => ({
+          ...prev,
+          firstName: data.name?.split(' ')[0] || prev.firstName,
+          lastName: data.name?.split(' ').slice(1).join(' ') || prev.lastName,
+          email: data.email || prev.email,
+          phone: data.phone || prev.phone,
+          linkedin: data.contactDetails?.linkedin || prev.linkedin,
+          github: data.contactDetails?.github || prev.github,
+          jobTitle: data.experience?.[0]?.position || prev.jobTitle,
+          summary: data.summary || prev.summary,
+        }));
+
+        // Auto-fill skills
+        if (data.skills && data.skills.length > 0) {
+          setSkills(data.skills);
+        }
+
+        // Auto-fill experience
+        if (data.experience && data.experience.length > 0) {
+          const mappedExperiences = data.experience.map(exp => ({
+            client: exp.company,
+            startMonth: "",
+            startYear: "",
+            endMonth: "",
+            endYear: "",
+            present: false
+          }));
+          setExperiences(mappedExperiences);
+        }
+
+        // Auto-fill education
+        if (data.education && data.education.length > 0) {
+          const mappedEducation = data.education.map(edu => ({
+            degree: `${edu.degree} in ${edu.field}`,
+            year: edu.year
+          }));
+          setEducation(mappedEducation);
+        }
+
+        setUploadStatus({ 
+          status: 'success', 
+          message: 'Resume processed successfully! Form has been auto-filled.' 
+        });
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploadStatus({ 
+        status: 'error', 
+        message: error instanceof Error ? error.message : 'Failed to process resume' 
+      });
+    }
+  };
+
+  const updateFormData = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
   const months = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
   ];
@@ -105,13 +213,47 @@ export function AddResumeModal({ open, onOpenChange }: AddResumeModalProps) {
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Documents - moved to top */}
+          {/* Documents - with AI processing */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Documents</h3>
+            
+            {/* Upload Status Alert */}
+            {uploadStatus.status !== 'idle' && (
+              <Alert className={uploadStatus.status === 'error' ? 'border-red-200 bg-red-50' : 
+                               uploadStatus.status === 'success' ? 'border-green-200 bg-green-50' : 
+                               'border-blue-200 bg-blue-50'}>
+                <div className="flex items-center gap-2">
+                  {uploadStatus.status === 'uploading' && <UploadIcon className="h-4 w-4 animate-spin" />}
+                  {uploadStatus.status === 'success' && <CheckCircle className="h-4 w-4 text-green-600" />}
+                  {uploadStatus.status === 'error' && <AlertCircle className="h-4 w-4 text-red-600" />}
+                  <AlertDescription>{uploadStatus.message}</AlertDescription>
+                </div>
+                {uploadStatus.status === 'uploading' && Object.keys(uploadProgress).length > 0 && (
+                  <div className="mt-2">
+                    {Object.entries(uploadProgress).map(([fileName, progress]) => (
+                      <div key={fileName} className="space-y-1">
+                        <div className="text-xs text-gray-600">{fileName}</div>
+                        <Progress value={progress} className="h-2" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Alert>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="resume">Resume</Label>
-                <Input id="resume" type="file" accept=".pdf,.doc,.docx" />
+                <Label htmlFor="resume">Resume (AI Processing Enabled)</Label>
+                <Input 
+                  id="resume" 
+                  type="file" 
+                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png" 
+                  onChange={handleResumeUpload}
+                  disabled={isUploading}
+                />
+                <div className="text-xs text-gray-500">
+                  Supported: PDF, DOC, DOCX, TXT, JPG, PNG
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="idDoc">ID Document</Label>
@@ -120,21 +262,35 @@ export function AddResumeModal({ open, onOpenChange }: AddResumeModalProps) {
             </div>
           </div>
 
-          {/* Personal Information */}
+          {/* Personal Information - with auto-filled values */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Personal Information</h3>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name<span className="text-red-500">*</span></Label>
-                <Input id="firstName" required />
+                <Input 
+                  id="firstName" 
+                  required 
+                  value={formData.firstName}
+                  onChange={(e) => updateFormData('firstName', e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="middleName">Middle Name</Label>
-                <Input id="middleName" />
+                <Input 
+                  id="middleName" 
+                  value={formData.middleName}
+                  onChange={(e) => updateFormData('middleName', e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lastName">Last Name<span className="text-red-500">*</span></Label>
-                <Input id="lastName" required />
+                <Input 
+                  id="lastName" 
+                  required 
+                  value={formData.lastName}
+                  onChange={(e) => updateFormData('lastName', e.target.value)}
+                />
               </div>
               <div className="space-y-2 col-span-1">
                 <Label htmlFor="dob">Date of Birth</Label>
@@ -184,25 +340,45 @@ export function AddResumeModal({ open, onOpenChange }: AddResumeModalProps) {
             </div>
           </div>
 
-          {/* Contact Information */}
+          {/* Contact Information - with auto-filled values */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Contact Information</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email<span className="text-red-500">*</span></Label>
-                <Input id="email" type="email" required />
+                <Input 
+                  id="email" 
+                  type="email" 
+                  required 
+                  value={formData.email}
+                  onChange={(e) => updateFormData('email', e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Contact Number<span className="text-red-500">*</span></Label>
-                <Input id="phone" type="tel" required />
+                <Input 
+                  id="phone" 
+                  type="tel" 
+                  required 
+                  value={formData.phone}
+                  onChange={(e) => updateFormData('phone', e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="linkedin">LinkedIn</Label>
-                <Input id="linkedin" />
+                <Input 
+                  id="linkedin" 
+                  value={formData.linkedin}
+                  onChange={(e) => updateFormData('linkedin', e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="github">GitHub</Label>
-                <Input id="github" />
+                <Input 
+                  id="github" 
+                  value={formData.github}
+                  onChange={(e) => updateFormData('github', e.target.value)}
+                />
               </div>
             </div>
           </div>
@@ -230,29 +406,48 @@ export function AddResumeModal({ open, onOpenChange }: AddResumeModalProps) {
             </div>
           </div>
 
-          {/* Professional Information */}
+          {/* Professional Information - with auto-filled values */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Professional Information</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="jobTitle">Job Title<span className="text-red-500">*</span></Label>
-                <Input id="jobTitle" required />
+                <Input 
+                  id="jobTitle" 
+                  required 
+                  value={formData.jobTitle}
+                  onChange={(e) => updateFormData('jobTitle', e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="salary">Expected Salary</Label>
-                <Input id="salary" type="number" />
+                <Input 
+                  id="salary" 
+                  type="number" 
+                  value={formData.salary}
+                  onChange={(e) => updateFormData('salary', e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="noticePeriod">Notice Period</Label>
-                <Input id="noticePeriod" />
+                <Input 
+                  id="noticePeriod" 
+                  value={formData.noticePeriod}
+                  onChange={(e) => updateFormData('noticePeriod', e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="experience">Years of Experience</Label>
-                <Input id="experience" type="number" />
+                <Input 
+                  id="experience" 
+                  type="number" 
+                  value={formData.experience}
+                  onChange={(e) => updateFormData('experience', e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="relocate">Willing to Relocate</Label>
-                <Select>
+                <Select value={formData.relocate} onValueChange={(value) => updateFormData('relocate', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select option" />
                   </SelectTrigger>
@@ -261,6 +456,22 @@ export function AddResumeModal({ open, onOpenChange }: AddResumeModalProps) {
                     <SelectItem value="no">No</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+            
+            {/* Summary field - spans full width */}
+            <div className="space-y-2">
+              <Label htmlFor="summary">Professional Summary</Label>
+              <Textarea 
+                id="summary" 
+                placeholder="Enter a brief professional summary highlighting key achievements, career highlights, and expertise..."
+                value={formData.summary}
+                onChange={(e) => updateFormData('summary', e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+              <div className="text-xs text-gray-500">
+                This will be auto-filled when you upload a resume with AI processing enabled.
               </div>
             </div>
           </div>
@@ -473,11 +684,14 @@ export function AddResumeModal({ open, onOpenChange }: AddResumeModalProps) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="bg-green-600 hover:bg-green-700">
-            Save Resume
+          <Button 
+            className="bg-green-600 hover:bg-green-700"
+            disabled={isUploading}
+          >
+            {isUploading ? 'Processing...' : 'Save Resume'}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
   );
-} 
+}
