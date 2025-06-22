@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { AuthUtils } from '@/lib/auth'
 import { createApiResponse } from '@/lib/validations'
 
-export const dynamic = 'force-dynamic';
+//export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
